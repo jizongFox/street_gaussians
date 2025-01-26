@@ -1,4 +1,6 @@
 import torch
+from loguru import logger
+
 from lib.utils.sh_utils import eval_sh
 from lib.models.street_gaussian_model import StreetGaussianModel
 from lib.utils.camera_utils import Camera, make_rasterizer
@@ -132,9 +134,11 @@ class StreetGaussianRenderer():
         try:
             means3D = pc.get_xyz
             num_gaussians = len(means3D)
-        except:
+
+        except Exception as e:
+            logger.error(f"Error in render_kernel: {e}")
             num_gaussians = 0
-        
+
         if num_gaussians == 0:
             if white_background:
                 rendered_color = torch.ones(3, int(viewpoint_camera.image_height), int(viewpoint_camera.image_width), device="cuda")
@@ -149,7 +153,6 @@ class StreetGaussianRenderer():
                 "acc": rendered_acc,
                 "semantic": rendered_semantic,
             }
-
         # Set up rasterization configuration and make rasterizer
         bg_color = [1, 1, 1] if white_background else [0, 0, 0]
         bg_color = torch.tensor(bg_color).float().cuda()

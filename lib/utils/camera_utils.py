@@ -11,6 +11,8 @@ from lib.utils.graphics_utils import fov2focal, getProjectionMatrix, getWorld2Vi
 from lib.datasets.base_readers import CameraInfo
 from lib.config import cfg
 from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
+import torchvision.transforms as T
+
 
 # if training, put everything to cuda
 # image_to_cuda = (cfg.mode == 'train') 
@@ -43,9 +45,7 @@ class Camera(nn.Module):
 
         # guidance
         self.guidance = guidance
-        self.original_image = image.clamp(0., 1.)
-
-        self.original_image = image.clamp(0, 1)                
+        self._image = image
         self.image_height, self.image_width = self.original_image.shape[1], self.original_image.shape[2]
         self.zfar = 1000.0
         self.znear = 0.001
@@ -67,6 +67,15 @@ class Camera(nn.Module):
         if 'extrinsic' in self.meta.keys():
             self.extrinsic = torch.from_numpy(self.meta['extrinsic']).float().cuda()
             del self.meta['extrinsic']
+
+    @property
+    def original_image(self):
+        with Image.open(self._image) as img:
+            image = img.convert('RGB')
+        return T.PILToTensor()(image).cuda()/255.0
+        # PILtoTorch(self._image.image, , resize_mode=Image.BILINEAR)[:3, ...]
+        # self.original_image = image.clamp(0, 1)
+
                 
     def set_extrinsic(self, c2w):
         w2c = np.linalg.inv(c2w)
@@ -140,11 +149,12 @@ def loadCam(cam_info: CameraInfo, resolution_scale, scale=1.0):
     scale = min(scale, 1600 / orig_w)
     scale = scale / resolution_scale
     resolution = (int(orig_w * scale), int(orig_h * scale))
+    # assert scale == 1.0
 
     K = copy.deepcopy(cam_info.K)
     K[:2] *= scale
 
-    image = PILtoTorch(cam_info.image, resolution, resize_mode=Image.BILINEAR)[:3, ...]
+    # image = PILtoTorch(cam_info.image, resolution, resize_mode=Image.BILINEAR)[:3, ...]
     guidance = loadguidance(cam_info.guidance, resolution)
 
     return Camera(
@@ -154,7 +164,7 @@ def loadCam(cam_info: CameraInfo, resolution_scale, scale=1.0):
         FoVx=cam_info.FovX,
         FoVy=cam_info.FovY,
         K=K,
-        image=image,
+        image=cam_info.image_path,
         image_name=cam_info.image_name,
         metadata=cam_info.metadata,
         guidance=guidance,
@@ -207,7 +217,6 @@ def make_rasterizer(
     # Set up rasterization configuration
     tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
     tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
-
     raster_settings = GaussianRasterizationSettings(
         image_height=int(viewpoint_camera.image_height),
         image_width=int(viewpoint_camera.image_width),

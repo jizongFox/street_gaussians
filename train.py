@@ -13,6 +13,8 @@ from lib.datasets.dataset import Dataset
 from lib.config import cfg
 from tqdm import tqdm
 from argparse import ArgumentParser, Namespace
+
+from lib.utils.lpipsPyTorch import lpips
 from lib.utils.system_utils import searchForMaxIteration
 import time
 try:
@@ -80,6 +82,9 @@ def training():
         mask = viewpoint_cam.guidance['mask'] if 'mask' in viewpoint_cam.guidance else torch.ones_like(gt_image[0:1]).bool()
         gt_image = gt_image.cuda(non_blocking=True) if not gt_image.is_cuda else gt_image
         mask = mask.cuda(non_blocking=True) if not mask.is_cuda else mask
+        lidar_depth = None
+        sky_mask = None
+        obj_bound = None
         if 'lidar_depth' in viewpoint_cam.guidance:
             lidar_depth = viewpoint_cam.guidance['lidar_depth']
             lidar_depth = lidar_depth.cuda(non_blocking=True) if not lidar_depth.is_cuda else lidar_depth
@@ -90,13 +95,11 @@ def training():
             obj_bound = viewpoint_cam.guidance['obj_bound']
             obj_bound = obj_bound.cuda(non_blocking=True) if not obj_bound.is_cuda else obj_bound
         
-            
         render_pkg = gaussians_renderer.render(viewpoint_cam, gaussians)
         image, acc, viewspace_point_tensor, visibility_filter, radii = render_pkg["rgb"], render_pkg['acc'], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
         depth = render_pkg['depth'] # [1, H, W]
 
         scalar_dict = dict()
-        
         # rgb loss
         Ll1 = l1_loss(image, gt_image, mask)
         scalar_dict['l1_loss'] = Ll1.item()
@@ -280,6 +283,8 @@ def training_report(tb_writer, iteration, scalar_stats, tensor_stats, testing_it
             if config['cameras'] and len(config['cameras']) > 0:
                 l1_test = 0.0
                 psnr_test = 0.0
+                ssim_test = 0.0
+                lpips_test = 0.0
                 for idx, viewpoint in enumerate(config['cameras']):
                     image = torch.clamp(renderer.render(viewpoint, scene.gaussians)["rgb"], 0.0, 1.0)
                     gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
@@ -294,13 +299,19 @@ def training_report(tb_writer, iteration, scalar_stats, tensor_stats, testing_it
                         mask = torch.ones_like(gt_image[0]).bool()
                     l1_test += l1_loss(image, gt_image, mask).mean().double()
                     psnr_test += psnr(image, gt_image, mask).mean().double()
+                    ssim_test += ssim(image, gt_image, mask=mask).mean().double()
+                    lpips_test += lpips(image, gt_image).mean().double()
 
                 psnr_test /= len(config['cameras'])
                 l1_test /= len(config['cameras'])
-                print("\n[ITER {}] Evaluating {}: L1 {} PSNR {}".format(iteration, config['name'], l1_test, psnr_test))
+                ssim_test /= len(config['cameras'])
+                lpips_test /= len(config['cameras'])
+                print("\n[ITER {}] Evaluating {}: L1 {} PSNR {} SSIM {} LPIPS {}".format(iteration, config['name'], l1_test, psnr_test, ssim_test, lpips_test))
                 if tb_writer:
                     tb_writer.add_scalar(config['name'] + '/loss_viewpoint - l1_loss', l1_test, iteration)
                     tb_writer.add_scalar(config['name'] + '/loss_viewpoint - psnr', psnr_test, iteration)
+                    tb_writer.add_scalar(config['name'] + '/loss_viewpoint - ssim', ssim_test, iteration)
+                    tb_writer.add_scalar(config['name'] + '/loss_viewpoint - lpips', lpips_test, iteration)
 
         if tb_writer:
             tb_writer.add_histogram("test/opacity_histogram", scene.gaussians.get_opacity, iteration)

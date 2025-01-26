@@ -291,9 +291,9 @@ def run_colmap_waymo(result):
                 --BundleAdjustment.refine_principal_point 0 \
                 --BundleAdjustment.refine_extra_params 0')
 
-    os.system(f'rm -rf {train_images_dir}')
-    os.system(f'rm -rf {test_images_dir}')  
-    os.system(f'rm -rf {mask_images_dir}')
+    # os.system(f'rm -rf {train_images_dir}')
+    # os.system(f'rm -rf {test_images_dir}')
+    # os.system(f'rm -rf {mask_images_dir}')
     
 if __name__ == '__main__':
     run_colmap_waymo(result=None)

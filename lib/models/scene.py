@@ -18,7 +18,8 @@ class Scene:
         
         if cfg.mode == 'train':
             point_cloud = self.dataset.scene_info.point_cloud
-            scene_raidus = self.dataset.scene_info.metadata['scene_radius']
+            # scene_raidus = self.dataset.scene_info.metadata['scene_radius']
+            scene_raidus = 10
             print("Creating gaussian model from point cloud")
             self.gaussians.create_from_pcd(point_cloud, scene_raidus)
             

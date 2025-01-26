@@ -191,9 +191,9 @@ def run_colmap_kitti(result=None):
             --image_path {train_images_dir} \
             --input_path {colmap_dir}/created/sparse/model --output_path {colmap_dir}/triangulated/sparse/model')
 
-    os.system(f'rm -rf {train_images_dir}')
-    os.system(f'rm -rf {test_images_dir}')  
-    os.system(f'rm -rf {mask_images_dir}')
+    # os.system(f'rm -rf {train_images_dir}')
+    # os.system(f'rm -rf {test_images_dir}')
+    # os.system(f'rm -rf {mask_images_dir}')
     
 if __name__ == '__main__':
     run_colmap_kitti(result=None)

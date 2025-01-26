@@ -1,5 +1,5 @@
 task: waymo_full_exp
-source_path: ./data/waymo/training/002
+source_path: /home/jizong/Workspace/dConstruct/data/benchmark-data/wayon/002
 exp_name: waymo_train_002
 
 data:
@@ -21,7 +21,7 @@ model:
     flip_prob: 0.5
   nsg:
     include_bkgd: true
-    include_obj: true
+    include_obj: false
     include_sky: true
     opt_track: true
 

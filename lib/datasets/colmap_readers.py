@@ -42,13 +42,29 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
         else:
             assert False, "Colmap camera model not handled: only undistorted datasets (PINHOLE or SIMPLE_PINHOLE cameras) supported!"
 
-        image_path = os.path.join(images_folder, os.path.basename(extr.name))
+        image_path = os.path.join(images_folder, (extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
-        image = Image.open(image_path)
+        # image = Image.open(image_path)
 
+        metadata = {
+            'frame': idx,
+            'cam': extr.camera_id,
+            'frame_idx': idx,
+            'timestamp': 0,
+            'is_val': False
+        }
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, K=K, 
-            image=image, image_path=image_path, image_name=image_name,
-            width=width, height=height)
+            image=None, image_path=image_path, image_name=image_name,
+            width=width, height=height, metadata=metadata, guidance=dict())
+        """meta_data
+        {'frame': 132,
+         'cam': 1,
+         'frame_idx': 34,
+         'timestamp': 3.4430127143859863,
+         'is_val': False}
+        """
+
+
         cam_infos.append(cam_info)
     sys.stdout.write('\n')
     return cam_infos
@@ -68,6 +84,7 @@ def readColmapSceneInfo(path, images='images', split_test=8, **kwargs):
         cameras_intrinsic_file = os.path.join(colmap_basedir, "cameras.txt")
         cam_extrinsics = read_extrinsics_text(cameras_extrinsic_file)
         cam_intrinsics = read_intrinsics_text(cameras_intrinsic_file)
+    cam_extrinsics = {k:v for i,(k,v) in enumerate(cam_extrinsics.items()) if v.camera_id in cam_intrinsics if i%40==0}
 
     reading_dir = images
     cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir))
